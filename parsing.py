@@ -44,7 +44,7 @@ for file in allfiles:
             nltk.download('wordnet')
             # print('\n\n\n\n')
             # print(tokens_without_sw)
-            text_tokens = word_tokenize(text)
+            text_tokens = word_tokenize(text) # text_tokens = text.split()   <-- without using nltk
             tokens_without_sw = [word for word in text_tokens if not word in stopwords.words()]
             
             print('\n\n\n\n')
