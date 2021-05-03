@@ -11,10 +11,12 @@ doc_regex = re.compile("<DOC>.*?</DOC>", re.DOTALL)
 docno_regex = re.compile("<DOCNO>.*?</DOCNO>")
 text_regex = re.compile("<TEXT>.*?</TEXT>", re.DOTALL)
 token_regex = re.compile("\w+([\,\.]\w+)*")
+#apply stemming to tokens
+porter = PorterStemmer()
 
 #zip extract function, uncomment out later
-# with zipfile.ZipFile("ap89_collection_small.zip", 'r') as zip_ref:
-#     zip_ref.extractall()
+with zipfile.ZipFile("ap89_collection_small.zip", 'r') as zip_ref:
+    zip_ref.extractall()
 
 #map term to an id
 term_ids = {}
@@ -74,8 +76,6 @@ for file in allfiles:
                 text_tokens.append(token)
 
 
-            #apply stemming to tokens
-            porter = PorterStemmer()
             #create a unique_terms set to keep count of unique words
             unique_terms = set()
             text_stemmed_sw = []
@@ -108,7 +108,7 @@ for file in allfiles:
                 if word not in term_ids:                                          #if word not in term_ids, then add it to the dict 
                     term_info[word] = [{'docno': docno, 'freq': 1, 'pos': [pos]}] #adding word to dict with term_uid as key
                     term_ids[word] = {term_uid}                                   #adding word key to term_id value
-
+                    
                 elif term_info[word][-1]['docno'] == docno:                       #check if the current docno matches the docno in the last entry to update the freq and pos of word
                     # print("dup word: ", word) #temp
                     term_info[word][-1]['freq'] += 1
@@ -121,9 +121,9 @@ for file in allfiles:
 
             doc_uid += 1
 
-
             # step 3 - build index
 print("Done...\n")
+
 
 
 def count_term(term, method_check, doc_name=''):
@@ -153,10 +153,10 @@ def process_commands(**kwargs):
     
     if 'term' in kwargs and 'doc' in kwargs:
         #--term TERM and --doc DOCNAME6
-        input_term = kwargs['term']
+        input_term = porter.stem(kwargs['term'])
         input_doc = kwargs['doc'].upper()
         print('--Both term and doc--')
-        print('Inverted list for term: ', input_term)
+        print('Inverted list for term: ', kwargs['term'])
         print('In document: ', input_doc)
         print('TERMID: ', term_ids[input_term])
         print('DOCID: ', doc_ids[input_doc]['doc_uid'])
@@ -174,9 +174,47 @@ def process_commands(**kwargs):
 
     elif 'term' in kwargs:
         #--term TERM
-        input_term = kwargs['term']
+        input_term = porter.stem(kwargs['term'])
         print('--Term only--')
-        print('Listing for term: ', input_term)
+        print('Listing for term: ', kwargs['term'])
         print('TERMID: ', term_ids[input_term])
         print('Number of documents containing term: ', count_term(input_term, "doc_contain_term"))
         print('Term frequency in corpus: ', count_term(input_term, "freq_corpus"))
+
+
+#creates term_index.txt file and writes to it
+f_term_index = open("term_index.txt", mode='w', encoding='utf-8') 
+for key, value in term_info.items():
+    # print(term_ids[key])
+    f_term_index.write(str(term_ids[key]) + '\t')
+    for value in term_info[key]:
+        # f_term_index.write(str(value['docno']) + ':')
+        # print(value['docno'],':')
+        for pos in value['pos']:
+            # print(value['docno'])
+            # print(pos)
+            f_term_index.write(str(value['docno']) + ':' + str(pos) + '\t')
+    f_term_index.write('\n')
+f_term_index.close()
+
+
+#creates term_info.txt file and writes to it
+f_term_info = open("term_info.txt", mode='w', encoding='utf-8') 
+for key, value in term_info.items():
+    write_freq = count_term(key, 'freq_corpus')
+    write_doc = count_term(key, 'doc_contain_term')
+    f_term_info.write(str(term_ids[key]) + '\t' + str(write_freq) + '\t' + str(write_doc) + '\n')
+f_term_info.close()
+
+
+#creates docids.txt file and writes to it
+f_docids = open("docids.txt", mode='w', encoding='utf-8') 
+for key, value in doc_ids.items():
+    f_docids.write(str(value['doc_uid']) + '\t' + str(key) + '\n')
+f_docids.close()
+
+#creates termids.txt file and writes to it
+f_termids = open("termids.txt", mode='w', encoding='utf-8') 
+for key, value in term_ids.items():
+    f_termids.write(str(value) + '\t'+ str(key) + '\n')
+f_termids.close()
