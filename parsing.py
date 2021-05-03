@@ -10,6 +10,7 @@ from nltk.stem import PorterStemmer
 doc_regex = re.compile("<DOC>.*?</DOC>", re.DOTALL)
 docno_regex = re.compile("<DOCNO>.*?</DOCNO>")
 text_regex = re.compile("<TEXT>.*?</TEXT>", re.DOTALL)
+token_regex = re.compile("\w+([\,\.]\w+)*")
 
 #zip extract function, uncomment out later
 # with zipfile.ZipFile("ap89_collection_small.zip", 'r') as zip_ref:
@@ -30,7 +31,6 @@ print('Preparing...\n')
 #open stopwords.txt file and read it
 with open("stopwords.txt", 'r') as sw_text:
         stopwords = sw_text.read().split()
-        #print(stopwords)
 
 # Retrieve the names of all files to be indexed in folder ./ap89_collection_small of the current directory
 for dir_path, dir_names, file_names in os.walk("ap89_collection_small"):
@@ -56,30 +56,15 @@ for file in allfiles:
             #remove all punctuations
             text = text.translate(str.maketrans('', '', string.punctuation))
             
-            # text_new_regex = re.compile("\w+([\,\.]\w+)*")
-            # text_new = re.findall(text_new_regex, text)
-
             #tokenize the text
             text_tokens = word_tokenize(text)
 
-            # print("original:\n")
-            # print(text_tokens)
-            # print('\n')
-            # text_new = word_tokenize(text_new)
-            # print("new:\n")
-            # print(text_new)
-
-
             #remove all stopwords from stopwords.txt file
             text_tokens_without_sw = [word for word in text_tokens if word not in stopwords]
-            # for word in text_tokens:
-            #     if(word not in stopwords):
-            #         text_tokens_without_sw.append(word)
-            # print(text_tokens_without_sw)
-            # print('\n\n\n\n')
 
             #apply stemming to tokens
             porter = PorterStemmer()
+            #create a unique_terms set to keep count of unique words
             unique_terms = set()
             text_stemmed_sw = []
             for word in text_tokens_without_sw:
@@ -89,21 +74,8 @@ for file in allfiles:
 
             # step 2 - create tokens
             pos = 1
-            
-            # print(len(unique_terms))
-            # print(docno.lower())
-            # print("docno: ", docno)
-            # print("doc name: ", os.path.basename(f.name))
-            #map key:doc id with value:doc uid
-            # print(type(doc_ids))
-            
-            doc_ids[docno.lower()] = {'doc_uid': doc_uid, 'total_terms': len(text_stemmed_sw), 'unique_terms': len(unique_terms)}
-
-            # print('l')
-            # for key in doc_ids:
-            #     print(type(key))
-            #     print(key)
-
+            #add new doc entry 
+            doc_ids[docno] = {'doc_uid': doc_uid, 'total_terms': len(text_stemmed_sw), 'unique_terms': len(unique_terms)}
 
             # key:term_id, value:(doc#, frequency in document, [ position1, position2, .....] )
             # term_info = {}
@@ -128,53 +100,52 @@ for file in allfiles:
                 pos += 1
                 term_uid += 1
 
-            # print("here")
             doc_uid += 1
-            
-            #looks at every word and puts them into term_info
-            # for word in text_stemmed_sw:
-            #     if word not in term_info.values(): #if word not in term_info, then add it to the dict 
-            #         term_info[term_uid] = [{'docno': docno, 'freq': 1, 'pos': [pos]}]
-            #         # term_info[word] = {'uid': term_uid, 'docno': docno, 'frequency': 1, 'position': [pos]}
-            #         term_ids[term_uid] = {word}
-            #     elif word is in term_info.values():
-            #         f
-            #     else:                     #if word exists then update the values
-            #         term_info[term_uid].append({'docno': docno, 'freq': 1, 'pos': [pos]})
-            #         # term_info[term_uid]['docno'].add(docno)
-            #         # term_info[term_uid]['freq'] += 1
-            #         # term_info[term_uid]['pos'].append(pos)
-            #     pos += 1
-            #     term_uid += 1
-            
-            # print(pos)
-            # print('doc_num: ', doc_num)
-            # print('docno: ', docno)
-            
-            # print("done")
+
 
             # step 3 - build index
 print("Done...\n")
 
+def count_term(term, method_check, doc_name=''):
+
+    if method_check == "doc_contain_term": #used in --term
+        return(len(term_info[term]))
+    
+    if method_check == "freq_corpus": #used in --term
+        total = 0
+        for value in term_info[term]:
+            total += value['freq']
+        return(total)
+
+    if method_check == "freq_doc": #used in --term --doc
+        for value in term_info[term]:
+            if value['docno'] == doc_name:
+                return(value['freq'])
+
+    if method_check == "pos": #used in --term --doc
+        for value in term_info[term]:
+            if value['docno'] == doc_name:
+                return(value['pos'])
+
 
 def process_commands(**kwargs):
-    print(kwargs, '\n')
+    # print(kwargs, '\n')
     
     if 'term' in kwargs and 'doc' in kwargs:
         #--term TERM and --doc DOCNAME6
         input_term = kwargs['term']
-        input_doc = kwargs['doc']
+        input_doc = kwargs['doc'].upper()
         print('--Both term and doc--')
         print('Inverted list for term: ', input_term)
         print('In document: ', input_doc)
         print('TERMID: ', term_ids[input_term])
         print('DOCID: ', doc_ids[input_doc]['doc_uid'])
-        print('Term frequency in document: ', )
-        print('Positions: ', )
+        print('Term frequency in document: ', count_term(input_term, 'freq_doc', input_doc))
+        print('Positions: ', count_term(input_term, 'pos', input_doc))
     
     elif 'doc' in kwargs:
         #--doc DOCNAME
-        input_doc = kwargs['doc']
+        input_doc = kwargs['doc'].upper()
         print('--Doc only--')
         print('Listing for document: ', input_doc)
         print('DOCID: ', doc_ids[input_doc]['doc_uid'])
@@ -187,5 +158,5 @@ def process_commands(**kwargs):
         print('--Term only--')
         print('Listing for term: ', input_term)
         print('TERMID: ', term_ids[input_term])
-        print('Number of documents containing term: ', )
-        print('Term frequency in corpus: ', )
+        print('Number of documents containing term: ', count_term(input_term, "doc_contain_term"))
+        print('Term frequency in corpus: ', count_term(input_term, "freq_corpus"))
