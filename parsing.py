@@ -53,23 +53,42 @@ for file in allfiles:
             # step 1 - lower-case words, remove punctuation, remove stop-words, etc.
             #make text into lower case
             text = text.lower()
-            #remove all punctuations
-            text = text.translate(str.maketrans('', '', string.punctuation))
-            
-            #tokenize the text
-            text_tokens = word_tokenize(text)
 
+            #---------
+            #remove all punctuations
+            # text = text.translate(str.maketrans('', '', string.punctuation))
+            #tokenize the text
+            # text_tokens = word_tokenize(text)
             #remove all stopwords from stopwords.txt file
-            text_tokens_without_sw = [word for word in text_tokens if word not in stopwords]
+            # text_tokens_without_sw = [word for word in text_tokens if word not in stopwords]
+            #---------
+
+            text_tokens = []
+            for match in re.finditer(token_regex, text):
+                token = (match.group())
+                # Remove apostrophe
+                token = token.split("'")[0]
+                if (token in stopwords):
+                    continue
+                # Add the token to our list
+                text_tokens.append(token)
+
 
             #apply stemming to tokens
             porter = PorterStemmer()
             #create a unique_terms set to keep count of unique words
             unique_terms = set()
             text_stemmed_sw = []
-            for word in text_tokens_without_sw:
-                unique_terms.add(word)
-                text_stemmed_sw.append(porter.stem(word))
+            #----------------
+            # for word in text_tokens_without_sw:
+            #     unique_terms.add(word)
+            #     text_stemmed_sw.append(porter.stem(word))
+            #----------------
+            for word in text_tokens:
+                stemmed = porter.stem(word)
+                text_stemmed_sw.append(stemmed)
+                unique_terms.add(stemmed)
+
 
 
             # step 2 - create tokens
@@ -105,6 +124,7 @@ for file in allfiles:
 
             # step 3 - build index
 print("Done...\n")
+
 
 def count_term(term, method_check, doc_name=''):
 
